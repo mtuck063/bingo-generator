@@ -104,6 +104,16 @@
       width: 100%;
     }
 
+    .control-group input[type="color"] {
+      width: 100%;
+      height: 36px;
+      padding: 2px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #fff;
+    }
+
     .control-group select:focus,
     .control-group input:focus,
     .control-group textarea:focus {
@@ -434,6 +444,10 @@
       color: #4361ee;
     }
 
+    .print-item-list {
+      display: none;
+    }
+
     .empty-state {
       display: flex;
       align-items: center;
@@ -658,7 +672,7 @@
         text-overflow: ellipsis;
       }
 
-      /* Force browsers to print background colors */
+      /* Force browsers to print background colors — inline styles carry user's choices */
       .bingo-table th,
       .bingo-table td,
       .bingo-table td.free-space {
@@ -666,23 +680,58 @@
         print-color-adjust: exact;
       }
 
-      .bingo-table th {
-        background: #4361ee !important;
-        color: #fff !important;
-      }
-
-      .bingo-table td {
-        background: #fafafa !important;
-      }
-
-      .bingo-table td.free-space {
-        background: #ffd166 !important;
-        color: #555 !important;
-      }
-
       .page-break {
         break-before: page;
         page-break-before: always;
+      }
+
+      .print-item-list {
+        display: block !important;
+        break-before: page;
+        page-break-before: always;
+        padding: 12px 0;
+        font-size: 13px;
+        color: #000;
+      }
+
+      .print-item-list h2 {
+        font-size: 18px;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 6px;
+      }
+
+      .print-item-list .item-columns {
+        column-count: 3;
+        column-gap: 24px;
+      }
+
+      .print-item-list .item-entry {
+        padding: 2px 0;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .print-item-list .item-entry span.item-num {
+        display: inline-block;
+        width: 28px;
+        color: #666;
+        text-align: right;
+        margin-right: 6px;
+      }
+
+      .print-item-list .image-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .print-item-list .image-grid img {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        border: 1px solid #ccc;
+        border-radius: 4px;
       }
     }
 
@@ -800,6 +849,61 @@
       </div>
     </div>
 
+    <!-- Style -->
+    <div class="section collapsed">
+      <div class="section-header" onclick="toggleSection(this)">Style</div>
+      <div class="section-body">
+        <div class="row">
+          <div class="control-group">
+            <label>Cell Font Size</label>
+            <select id="cellFontSize" onchange="applyStyleSettings()">
+              <option value="auto" selected>Auto</option>
+              <option value="10">10px</option>
+              <option value="12">12px</option>
+              <option value="14">14px</option>
+              <option value="16">16px</option>
+              <option value="18">18px</option>
+              <option value="20">20px</option>
+              <option value="24">24px</option>
+              <option value="28">28px</option>
+              <option value="32">32px</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>Header Font Size</label>
+            <select id="headerFontSize" onchange="applyStyleSettings()">
+              <option value="auto" selected>Auto</option>
+              <option value="14">14px</option>
+              <option value="18">18px</option>
+              <option value="22" selected>22px</option>
+              <option value="26">26px</option>
+              <option value="30">30px</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="control-group">
+            <label>Cell Text Color</label>
+            <input type="color" id="cellTextColor" value="#1a1a2e" onchange="applyStyleSettings()">
+          </div>
+          <div class="control-group">
+            <label>Header Color</label>
+            <input type="color" id="headerBgColor" value="#4361ee" onchange="applyStyleSettings()">
+          </div>
+        </div>
+        <div class="row">
+          <div class="control-group">
+            <label>Cell Background</label>
+            <input type="color" id="cellBgColor" value="#fafafa" onchange="applyStyleSettings()">
+          </div>
+          <div class="control-group">
+            <label>Free Space Color</label>
+            <input type="color" id="freeBgColor" value="#ffd166" onchange="applyStyleSettings()">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Print & Generation -->
     <div class="section">
       <div class="section-header" onclick="toggleSection(this)">Print &amp; Generation</div>
@@ -861,6 +965,7 @@
     <div id="cardsContainer" class="cards-container print-4">
       <div class="empty-state">Configure settings and click <strong>Generate</strong> to create bingo cards.</div>
     </div>
+    <div id="printItemList" class="print-item-list"></div>
   </main>
 
   <script>
@@ -1151,6 +1256,43 @@
       });
     })();
 
+    // ── Style settings ──
+    function getStyleSettings() {
+      return {
+        cellFontSize: document.getElementById('cellFontSize').value,
+        headerFontSize: document.getElementById('headerFontSize').value,
+        cellTextColor: document.getElementById('cellTextColor').value,
+        headerBgColor: document.getElementById('headerBgColor').value,
+        cellBgColor: document.getElementById('cellBgColor').value,
+        freeBgColor: document.getElementById('freeBgColor').value,
+      };
+    }
+
+    function applyStyleSettings() {
+      var s = getStyleSettings();
+      var container = document.getElementById('cardsContainer');
+
+      // Apply to existing cards via CSS custom properties on the container
+      container.style.setProperty('--user-cell-color', s.cellTextColor);
+      container.style.setProperty('--user-header-bg', s.headerBgColor);
+      container.style.setProperty('--user-cell-bg', s.cellBgColor);
+      container.style.setProperty('--user-free-bg', s.freeBgColor);
+
+      // Font sizes need to be applied to existing elements
+      container.querySelectorAll('.bingo-table th').forEach(function(th) {
+        th.style.background = s.headerBgColor;
+        if (s.headerFontSize !== 'auto') th.style.fontSize = s.headerFontSize + 'px';
+      });
+      container.querySelectorAll('.bingo-table td').forEach(function(td) {
+        td.style.background = td.classList.contains('free-space') ? s.freeBgColor : s.cellBgColor;
+        td.style.color = s.cellTextColor;
+      });
+      container.querySelectorAll('.cell-text').forEach(function(span) {
+        if (s.cellFontSize !== 'auto') span.style.fontSize = s.cellFontSize + 'px';
+        span.style.color = s.cellTextColor;
+      });
+    }
+
     // ── Card generation ──
     function generateNumberColumns(size, rangePerCol, rng) {
       const columns = [];
@@ -1230,6 +1372,8 @@
       header.appendChild(numberLabel);
       card.appendChild(header);
 
+      const styles = getStyleSettings();
+
       const table = document.createElement('table');
       table.className = 'bingo-table';
 
@@ -1242,6 +1386,8 @@
       for (let col = 0; col < size; col++) {
         const th = document.createElement('th');
         th.textContent = headers[col];
+        th.style.background = styles.headerBgColor;
+        if (styles.headerFontSize !== 'auto') th.style.fontSize = styles.headerFontSize + 'px';
         headerRow.appendChild(th);
       }
       thead.appendChild(headerRow);
@@ -1257,12 +1403,16 @@
           const span = document.createElement('span');
           span.className = 'cell-text';
 
+          var fontSize;
           if (freeCellSet.has(row + ',' + col)) {
             span.textContent = freeLabel;
             td.classList.add('free-space');
-            span.style.fontSize = computeCellFontSize(freeLabel, cellSize) + 'px';
+            td.style.background = styles.freeBgColor;
+            fontSize = styles.cellFontSize !== 'auto' ? styles.cellFontSize + 'px' : computeCellFontSize(freeLabel, cellSize) + 'px';
+            span.style.fontSize = fontSize;
             span.style.fontWeight = '700';
           } else {
+            td.style.background = styles.cellBgColor;
             const val = getCell(row, col);
             if (typeof val === 'string' && val.startsWith('data:image')) {
               const img = document.createElement('img');
@@ -1272,9 +1422,11 @@
             } else {
               const text = String(val);
               span.textContent = text;
-              span.style.fontSize = computeCellFontSize(text, cellSize) + 'px';
+              fontSize = styles.cellFontSize !== 'auto' ? styles.cellFontSize + 'px' : computeCellFontSize(text, cellSize) + 'px';
+              span.style.fontSize = fontSize;
             }
           }
+          span.style.color = styles.cellTextColor;
 
           td.appendChild(span);
           tr.appendChild(td);
@@ -1412,10 +1564,61 @@
         }
       }
 
+      // Build print item list
+      buildPrintItemList(size, freeCells);
+
       // On mobile, close sidebar after generating
       if (window.innerWidth <= 700) {
         document.getElementById('sidebar').classList.remove('open');
         document.getElementById('sidebarOverlay').classList.remove('open');
+      }
+    }
+
+    function buildPrintItemList(size, freeCells) {
+      const el = document.getElementById('printItemList');
+      el.innerHTML = '';
+      const cardTitle = document.getElementById('cardTitle').value.trim();
+
+      const heading = document.createElement('h2');
+      heading.textContent = (cardTitle || 'Bingo') + ' \u2014 Item List';
+      el.appendChild(heading);
+
+      if (currentMode === 'numbers') {
+        const rangePerCol = parseInt(document.getElementById('numberRange').value);
+        const headers = getHeaders();
+        const cols = document.createElement('div');
+        cols.className = 'item-columns';
+        for (let col = 0; col < size; col++) {
+          const min = col * rangePerCol + 1;
+          const max = min + rangePerCol - 1;
+          for (let n = min; n <= max; n++) {
+            const entry = document.createElement('div');
+            entry.className = 'item-entry';
+            entry.innerHTML = '<span class="item-num">' + (headers[col] || '') + '</span>' + n;
+            cols.appendChild(entry);
+          }
+        }
+        el.appendChild(cols);
+      } else if (currentMode === 'custom') {
+        const items = getCustomItems();
+        const cols = document.createElement('div');
+        cols.className = 'item-columns';
+        items.forEach(function(item, i) {
+          const entry = document.createElement('div');
+          entry.className = 'item-entry';
+          entry.innerHTML = '<span class="item-num">' + (i + 1) + '.</span>' + item;
+          cols.appendChild(entry);
+        });
+        el.appendChild(cols);
+      } else if (currentMode === 'images') {
+        const grid = document.createElement('div');
+        grid.className = 'image-grid';
+        uploadedImages.forEach(function(dataUrl, i) {
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          grid.appendChild(img);
+        });
+        el.appendChild(grid);
       }
     }
 
