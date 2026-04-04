@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bingo Card Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 300px;
+      min-width: 300px;
+      background: #fff;
+      border-right: 1px solid #e0e0e0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sidebar h1 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #1a1a2e;
+    }
+
+    .section {
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      background: #f8f9fa;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .section-header::after {
+      content: '\25B2';
+      font-size: 10px;
+      color: #999;
+      transition: transform 0.2s;
+    }
+
+    .section.collapsed .section-header::after {
+      transform: rotate(180deg);
+    }
+
+    .section.collapsed .section-body {
+      display: none;
+    }
+
+    .section-body {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .control-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #777;
+    }
+
+    .control-group select,
+    .control-group input[type="text"],
+    .control-group input[type="number"],
+    .control-group textarea {
+      padding: 7px 10px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .control-group select:focus,
+    .control-group input:focus,
+    .control-group textarea:focus {
+      border-color: #4361ee;
+    }
+
+    .control-group textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-size: 13px;
+    }
+
+    .header-chars-container {
+      display: flex;
+      gap: 4px;
+    }
+
+    .header-char-input {
+      width: 100% !important;
+      text-align: center;
+      font-weight: 700;
+      font-size: 15px !important;
+      text-transform: uppercase;
+      padding: 7px 2px !important;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .row > .control-group {
+      flex: 1;
+    }
+
+    .mode-toggle {
+      display: flex;
+      border: 2px solid #4361ee;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .mode-toggle button {
+      flex: 1;
+      padding: 8px 4px;
+      border: none;
+      background: #fff;
+      color: #4361ee;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-toggle button.active {
+      background: #4361ee;
+      color: #fff;
+    }
+
+    .file-upload-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn-upload {
+      padding: 7px 12px;
+      background: #f0f0f0;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .btn-upload:hover { background: #e4e4e4; }
+
+    .file-name {
+      font-size: 12px;
+      color: #888;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .hidden-input { display: none; }
+
+    .free-space-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .free-space-options label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #444;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .seed-row {
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .seed-row .control-group { flex: 1; }
+
+    .btn-random-seed {
+      padding: 7px 10px;
+      background: #f0f0f0;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      line-height: 1;
+    }
+
+    .btn-random-seed:hover { background: #e4e4e4; }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.97); }
+
+    .btn-generate {
+      flex: 1;
+      padding: 12px 16px;
+      background: #4361ee;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .btn-generate:hover { background: #3a56d4; }
+
+    .btn-print {
+      padding: 12px 16px;
+      background: #2ec4b6;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .btn-print:hover { background: #28b0a3; }
+
+    .shortcut-hint {
+      font-size: 11px;
+      color: #aaa;
+      text-align: center;
+      margin-top: 2px;
+    }
+
+    .item-count-info {
+      font-size: 11px;
+      color: #888;
+      margin-top: -4px;
+    }
+
+    .item-count-info.warning { color: #e63946; font-weight: 600; }
+
+    /* ── Main area ── */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      height: 100vh;
+    }
+
+    .cards-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      padding: 28px;
+      justify-content: center;
+    }
+
+    .bingo-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.07);
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .bingo-card-header {
+      text-align: center;
+      padding: 10px 12px 0;
+    }
+
+    .bingo-card-custom-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #1a1a2e;
+      margin-bottom: 2px;
+    }
+
+    .bingo-card-number {
+      font-size: 12px;
+      font-weight: 600;
+      color: #aaa;
+    }
+
+    .bingo-table {
+      border-collapse: collapse;
+      margin: 10px;
+    }
+
+    .bingo-table th,
+    .bingo-table td {
+      border: 2px solid #e0e0e0;
+      text-align: center;
+      font-weight: 600;
+      vertical-align: middle;
+      overflow: hidden;
+    }
+
+    .bingo-table th {
+      background: #4361ee;
+      color: #fff;
+      font-size: 22px;
+      padding: 8px 0;
+    }
+
+    .bingo-table td {
+      background: #fafafa;
+      padding: 2px;
+    }
+
+    .bingo-table td.free-space {
+      background: #ffd166;
+      color: #555;
+    }
+
+    .cell-text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      line-height: 1.15;
+      word-break: break-word;
+    }
+
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 300px;
+      color: #bbb;
+      font-size: 17px;
+      padding: 40px;
+      text-align: center;
+    }
+
+    /* ── Mobile sidebar toggle ── */
+    .sidebar-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #4361ee;
+      color: #fff;
+      border: none;
+      font-size: 24px;
+      box-shadow: 0 4px 16px rgba(67, 97, 238, 0.4);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 99;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      body { display: block; }
+
+      .sidebar {
+        position: fixed;
+        left: -320px;
+        top: 0;
+        z-index: 100;
+        height: 100vh;
+        transition: left 0.3s ease;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+      }
+
+      .sidebar.open { left: 0; }
+
+      .sidebar-toggle {
+        display: flex;
+      }
+
+      .sidebar-overlay.open {
+        display: block;
+      }
+
+      .main {
+        height: auto;
+        min-height: 100vh;
+      }
+
+      .cards-container {
+        padding: 16px;
+        gap: 16px;
+      }
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; display: block; }
+      .sidebar, .sidebar-toggle, .sidebar-overlay { display: none !important; }
+
+      .main {
+        height: auto;
+        overflow: visible;
+      }
+
+      .cards-container {
+        padding: 0;
+        gap: 0;
+        display: grid;
+        justify-content: center;
+        justify-items: center;
+        align-content: start;
+      }
+
+      /* Cards-per-page layout classes set by JS — landscape */
+      .cards-container.print-1 {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .cards-container.print-2 {
+        grid-template-columns: repeat(2, auto);
+        gap: 16px;
+      }
+      .cards-container.print-4 {
+        grid-template-columns: repeat(2, auto);
+        gap: 12px;
+      }
+      .cards-container.print-6 {
+        grid-template-columns: repeat(3, auto);
+        gap: 8px;
+      }
+
+      .bingo-card {
+        box-shadow: none;
+        border: 2px solid #000;
+        border-radius: 2px;
+        margin: 4px;
+      }
+
+      /* Scale up cells for print */
+      .bingo-table th, .bingo-table td { border-color: #000; }
+
+      .cards-container.print-1 .bingo-table th,
+      .cards-container.print-1 .bingo-table td {
+        width: 120px !important;
+        height: 120px !important;
+        font-size: 28px;
+      }
+      .cards-container.print-1 .bingo-table th {
+        height: 80px !important;
+        font-size: 32px;
+      }
+
+      .cards-container.print-2 .bingo-table th,
+      .cards-container.print-2 .bingo-table td {
+        width: 90px !important;
+        height: 90px !important;
+        font-size: 22px;
+      }
+      .cards-container.print-2 .bingo-table th {
+        height: 60px !important;
+        font-size: 26px;
+      }
+
+      .cards-container.print-4 .bingo-table th,
+      .cards-container.print-4 .bingo-table td {
+        width: 72px !important;
+        height: 72px !important;
+        font-size: 18px;
+      }
+      .cards-container.print-4 .bingo-table th {
+        height: 48px !important;
+        font-size: 22px;
+      }
+
+      .cards-container.print-6 .bingo-table th,
+      .cards-container.print-6 .bingo-table td {
+        width: 52px !important;
+        height: 52px !important;
+        font-size: 14px;
+      }
+      .cards-container.print-6 .bingo-table th {
+        height: 36px !important;
+        font-size: 16px;
+      }
+
+      .bingo-card-custom-title {
+        font-size: 20px;
+      }
+
+      /* Override inline font-sizes for print — let cells breathe */
+      .cards-container.print-1 .cell-text { font-size: 28px !important; }
+      .cards-container.print-2 .cell-text { font-size: 22px !important; }
+      .cards-container.print-4 .cell-text { font-size: 18px !important; }
+      .cards-container.print-6 .cell-text { font-size: 13px !important; }
+
+      /* Force browsers to print background colors */
+      .bingo-table th,
+      .bingo-table td,
+      .bingo-table td.free-space {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .bingo-table th {
+        background: #4361ee !important;
+        color: #fff !important;
+      }
+
+      .bingo-table td {
+        background: #fafafa !important;
+      }
+
+      .bingo-table td.free-space {
+        background: #ffd166 !important;
+        color: #555 !important;
+      }
+
+      .page-break {
+        break-before: page;
+        page-break-before: always;
+      }
+    }
+
+    @page {
+      size: landscape;
+      margin: 0.4in;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Mobile overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar Controls -->
+  <aside class="sidebar" id="sidebar">
+    <h1>Bingo Generator</h1>
+
+    <!-- Card Setup -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">Card Setup</div>
+      <div class="section-body">
+        <div class="control-group">
+          <label>Card Title</label>
+          <input type="text" id="cardTitle" placeholder="e.g. Baby Shower Bingo">
+        </div>
+        <div class="control-group">
+          <label>Grid Size</label>
+          <select id="gridSize" onchange="onGridSizeChange()">
+            <option value="3">3 &times; 3</option>
+            <option value="4">4 &times; 4</option>
+            <option value="5" selected>5 &times; 5</option>
+            <option value="6">6 &times; 6</option>
+            <option value="7">7 &times; 7</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Header Characters</label>
+          <div id="headerCharsContainer" class="header-chars-container"></div>
+        </div>
+        <div class="control-group">
+          <label>Content Mode</label>
+          <div class="mode-toggle">
+            <button class="active" id="modeNumbers" onclick="setMode('numbers')">Numbers</button>
+            <button id="modeCustom" onclick="setMode('custom')">Custom Text</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Number Settings -->
+    <div class="section" id="numberSettings">
+      <div class="section-header" onclick="toggleSection(this)">Number Settings</div>
+      <div class="section-body">
+        <div class="control-group">
+          <label>Range Per Column</label>
+          <select id="numberRange">
+            <option value="15" selected>1 &ndash; 15 per col</option>
+            <option value="20">1 &ndash; 20 per col</option>
+            <option value="25">1 &ndash; 25 per col</option>
+            <option value="30">1 &ndash; 30 per col</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Content -->
+    <div class="section hidden" id="customSettings">
+      <div class="section-header" onclick="toggleSection(this)">Custom Content</div>
+      <div class="section-body">
+        <div class="control-group">
+          <label>Items (one per line)</label>
+          <textarea id="customItems" placeholder="Enter bingo items, one per line...&#10;&#10;e.g.&#10;Says &quot;synergy&quot;&#10;Someone is late&#10;Dog on camera"></textarea>
+        </div>
+        <div class="item-count-info" id="itemCountInfo"></div>
+        <div class="file-upload-row">
+          <button class="btn-upload" onclick="document.getElementById('fileInput').click()">Import File</button>
+          <span class="file-name" id="fileName">No file chosen</span>
+          <input type="file" id="fileInput" class="hidden-input" accept=".txt,.csv" onchange="handleFileUpload(event)">
+        </div>
+      </div>
+    </div>
+
+    <!-- Free Space -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">Free Space</div>
+      <div class="section-body">
+        <div class="control-group">
+          <label>Position</label>
+          <select id="freeSpacePosition">
+            <option value="center" selected>Center</option>
+            <option value="corners">Four Corners</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+        <div class="control-group" id="freeTextGroup">
+          <label>Label</label>
+          <input type="text" id="freeSpaceText" value="FREE" maxlength="20" placeholder="FREE">
+        </div>
+      </div>
+    </div>
+
+    <!-- Print & Generation -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">Print &amp; Generation</div>
+      <div class="section-body">
+        <div class="row">
+          <div class="control-group">
+            <label>Cards to Generate</label>
+            <select id="cardCount">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="4" selected>4</option>
+              <option value="6">6</option>
+              <option value="8">8</option>
+              <option value="10">10</option>
+              <option value="12">12</option>
+              <option value="16">16</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>Cards Per Page</label>
+            <select id="cardsPerPage">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="4" selected>4</option>
+              <option value="6">6</option>
+            </select>
+          </div>
+        </div>
+        <div class="seed-row">
+          <div class="control-group">
+            <label>Seed (optional)</label>
+            <input type="text" id="seed" placeholder="Leave blank for random">
+          </div>
+          <button class="btn-random-seed" onclick="randomizeSeed()" title="Generate random seed">&#x1f3b2;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions">
+      <button class="btn-generate" onclick="generateCards()">Generate</button>
+      <button class="btn-print" onclick="window.print()">Print / PDF</button>
+    </div>
+    <div class="shortcut-hint">Enter = Generate &middot; Ctrl+P = Print</div>
+  </aside>
+
+  <!-- Mobile toggle button -->
+  <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Open settings">&#9776;</button>
+
+  <!-- Main content -->
+  <main class="main">
+    <div id="cardsContainer" class="cards-container print-4">
+      <div class="empty-state">Configure settings and click <strong>Generate</strong> to create bingo cards.</div>
+    </div>
+  </main>
+
+  <script>
+    // ── Seeded PRNG (mulberry32) ──
+    function mulberry32(a) {
+      return function() {
+        a |= 0;
+        a = a + 0x6D2B79F5 | 0;
+        var t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function hashString(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return hash;
+    }
+
+    function getRng() {
+      const seedVal = document.getElementById('seed').value.trim();
+      if (seedVal) {
+        return mulberry32(hashString(seedVal));
+      }
+      // Use Math.random as the source for a random seed
+      return mulberry32((Math.random() * 0xFFFFFFFF) >>> 0);
+    }
+
+    function shuffle(arr, rng) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // ── State ──
+    let currentMode = 'numbers';
+
+    const defaultHeaders = {
+      3: ['B', 'I', 'N'],
+      4: ['B', 'I', 'N', 'G'],
+      5: ['B', 'I', 'N', 'G', 'O'],
+      6: ['B', 'I', 'N', 'G', 'O', '!'],
+      7: ['B', 'I', 'N', 'G', 'O', '!', '!'],
+    };
+
+    // ── UI Helpers ──
+    function toggleSection(header) {
+      header.parentElement.classList.toggle('collapsed');
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('modeNumbers').classList.toggle('active', mode === 'numbers');
+      document.getElementById('modeCustom').classList.toggle('active', mode === 'custom');
+      document.getElementById('numberSettings').classList.toggle('hidden', mode === 'custom');
+      document.getElementById('customSettings').classList.toggle('hidden', mode === 'numbers');
+      updateItemCount();
+    }
+
+    function onGridSizeChange() {
+      buildHeaderInputs();
+      updateItemCount();
+      updateFreeSpaceVisibility();
+    }
+
+    function updateFreeSpaceVisibility() {
+      const size = parseInt(document.getElementById('gridSize').value);
+      const pos = document.getElementById('freeSpacePosition');
+      const centerOpt = pos.querySelector('option[value="center"]');
+      // Center only available for odd grids
+      if (size % 2 === 0 && pos.value === 'center') {
+        pos.value = 'none';
+      }
+      centerOpt.disabled = size % 2 === 0;
+
+      document.getElementById('freeTextGroup').classList.toggle('hidden',
+        document.getElementById('freeSpacePosition').value === 'none');
+    }
+
+    function buildHeaderInputs() {
+      const size = parseInt(document.getElementById('gridSize').value);
+      const container = document.getElementById('headerCharsContainer');
+      const existing = container.querySelectorAll('.header-char-input');
+      const currentValues = Array.from(existing).map(i => i.value);
+      container.innerHTML = '';
+      const defaults = defaultHeaders[size];
+      for (let i = 0; i < size; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 2;
+        input.className = 'header-char-input';
+        input.value = currentValues[i] !== undefined && currentValues[i] !== '' ? currentValues[i] : (defaults[i] || '');
+        container.appendChild(input);
+      }
+    }
+
+    function getHeaders() {
+      return Array.from(document.querySelectorAll('.header-char-input')).map(i => i.value || '');
+    }
+
+    function randomizeSeed() {
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      let s = '';
+      for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)];
+      document.getElementById('seed').value = s;
+    }
+
+    // ── Custom content helpers ──
+    function getCustomItems() {
+      return document.getElementById('customItems').value
+        .split('\n')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+    }
+
+    function updateItemCount() {
+      const info = document.getElementById('itemCountInfo');
+      if (currentMode !== 'custom') { info.textContent = ''; return; }
+      const items = getCustomItems();
+      const size = parseInt(document.getElementById('gridSize').value);
+      const needed = size * size;
+      const freePos = document.getElementById('freeSpacePosition').value;
+      const freeCount = freePos === 'center' ? 1 : freePos === 'corners' ? 4 : 0;
+      const actualNeeded = needed - freeCount;
+
+      if (items.length < actualNeeded) {
+        info.textContent = items.length + ' items entered. Need at least ' + actualNeeded + '.';
+        info.className = 'item-count-info warning';
+      } else {
+        info.textContent = items.length + ' items entered (' + actualNeeded + ' needed per card).';
+        info.className = 'item-count-info';
+      }
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      document.getElementById('fileName').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        let text = e.target.result;
+        // If CSV with commas on single lines, split by comma
+        if (file.name.endsWith('.csv') && text.split('\n').length <= 2) {
+          text = text.split(',').map(s => s.trim()).filter(Boolean).join('\n');
+        }
+        document.getElementById('customItems').value = text;
+        updateItemCount();
+      };
+      reader.readAsText(file);
+    }
+
+    // ── Card generation ──
+    function generateNumberColumns(size, rangePerCol, rng) {
+      const columns = [];
+      for (let col = 0; col < size; col++) {
+        const min = col * rangePerCol + 1;
+        const pool = [];
+        for (let n = min; n < min + rangePerCol; n++) pool.push(n);
+        columns.push(shuffle(pool, rng).slice(0, size));
+      }
+      return columns;
+    }
+
+    function generateCustomGrid(size, items, rng) {
+      const shuffled = shuffle(items, rng);
+      const grid = [];
+      let idx = 0;
+      for (let row = 0; row < size; row++) {
+        grid[row] = [];
+        for (let col = 0; col < size; col++) {
+          grid[row][col] = shuffled[idx++];
+        }
+      }
+      return grid;
+    }
+
+    function getFreeCells(size, position) {
+      if (position === 'none') return [];
+      if (position === 'center') {
+        const c = Math.floor(size / 2);
+        return [[c, c]];
+      }
+      if (position === 'corners') {
+        return [[0, 0], [0, size - 1], [size - 1, 0], [size - 1, size - 1]];
+      }
+      return [];
+    }
+
+    function cardFingerprint(size, getCell) {
+      const parts = [];
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          parts.push(getCell(r, c));
+        }
+      }
+      return parts.join('|');
+    }
+
+    function computeCellFontSize(text, cellSize) {
+      const len = text.length;
+      if (len <= 3) return Math.max(14, cellSize * 0.4);
+      if (len <= 6) return Math.max(12, cellSize * 0.3);
+      if (len <= 12) return Math.max(10, cellSize * 0.22);
+      if (len <= 20) return Math.max(9, cellSize * 0.18);
+      return Math.max(7, cellSize * 0.14);
+    }
+
+    function createCardElement(cardNumber, size, headers, getCell, freeCells, freeLabel) {
+      const cellSize = Math.max(52, 80 - (size - 3) * 7);
+      const freeCellSet = new Set(freeCells.map(([r, c]) => r + ',' + c));
+
+      const cardTitle = document.getElementById('cardTitle').value.trim();
+
+      const card = document.createElement('div');
+      card.className = 'bingo-card';
+
+      const header = document.createElement('div');
+      header.className = 'bingo-card-header';
+      if (cardTitle) {
+        const customTitle = document.createElement('div');
+        customTitle.className = 'bingo-card-custom-title';
+        customTitle.textContent = cardTitle;
+        header.appendChild(customTitle);
+      }
+      const numberLabel = document.createElement('div');
+      numberLabel.className = 'bingo-card-number';
+      numberLabel.textContent = 'Card #' + cardNumber;
+      header.appendChild(numberLabel);
+      card.appendChild(header);
+
+      const table = document.createElement('table');
+      table.className = 'bingo-table';
+
+      // Header
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      for (let col = 0; col < size; col++) {
+        const th = document.createElement('th');
+        th.textContent = headers[col];
+        th.style.width = cellSize + 'px';
+        th.style.height = Math.round(cellSize * 0.65) + 'px';
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // Body
+      const tbody = document.createElement('tbody');
+      for (let row = 0; row < size; row++) {
+        const tr = document.createElement('tr');
+        for (let col = 0; col < size; col++) {
+          const td = document.createElement('td');
+          td.style.width = cellSize + 'px';
+          td.style.height = cellSize + 'px';
+
+          const span = document.createElement('span');
+          span.className = 'cell-text';
+
+          if (freeCellSet.has(row + ',' + col)) {
+            span.textContent = freeLabel;
+            td.classList.add('free-space');
+            span.style.fontSize = computeCellFontSize(freeLabel, cellSize) + 'px';
+            span.style.fontWeight = '700';
+          } else {
+            const val = getCell(row, col);
+            const text = String(val);
+            span.textContent = text;
+            span.style.fontSize = computeCellFontSize(text, cellSize) + 'px';
+          }
+
+          td.appendChild(span);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      card.appendChild(table);
+      return card;
+    }
+
+    function generateCards() {
+      const size = parseInt(document.getElementById('gridSize').value);
+      const count = parseInt(document.getElementById('cardCount').value);
+      const cardsPerPage = parseInt(document.getElementById('cardsPerPage').value);
+      const freePos = document.getElementById('freeSpacePosition').value;
+      const freeLabel = document.getElementById('freeSpaceText').value || 'FREE';
+      const headers = getHeaders();
+      const freeCells = getFreeCells(size, freePos);
+      const freeCellSet = new Set(freeCells.map(([r, c]) => r + ',' + c));
+      const rng = getRng();
+
+      const container = document.getElementById('cardsContainer');
+      container.innerHTML = '';
+      container.className = 'cards-container print-' + cardsPerPage;
+
+      if (currentMode === 'custom') {
+        const items = getCustomItems();
+        const cellsNeeded = size * size - freeCells.length;
+        if (items.length < cellsNeeded) {
+          container.innerHTML = '<div class="empty-state">Not enough items. Enter at least <strong>' +
+            cellsNeeded + '</strong> items for a ' + size + '&times;' + size + ' card.</div>';
+          return;
+        }
+
+        const seen = new Set();
+        for (let i = 0; i < count; i++) {
+          let grid, fp;
+          let attempts = 0;
+          do {
+            // Build items list excluding free cells
+            const shuffled = shuffle(items, rng);
+            grid = [];
+            let idx = 0;
+            for (let r = 0; r < size; r++) {
+              grid[r] = [];
+              for (let c = 0; c < size; c++) {
+                if (freeCellSet.has(r + ',' + c)) {
+                  grid[r][c] = '__FREE__';
+                } else {
+                  grid[r][c] = shuffled[idx++];
+                }
+              }
+            }
+            fp = cardFingerprint(size, (r, c) => grid[r][c]);
+            attempts++;
+          } while (seen.has(fp) && attempts < 100);
+          seen.add(fp);
+
+          const getCell = (r, c) => grid[r][c];
+          const card = createCardElement(i + 1, size, headers, getCell, freeCells, freeLabel);
+
+          // Page break
+          if (i > 0 && i % cardsPerPage === 0) {
+            card.classList.add('page-break');
+          }
+          container.appendChild(card);
+        }
+      } else {
+        const rangePerCol = parseInt(document.getElementById('numberRange').value);
+        const seen = new Set();
+
+        for (let i = 0; i < count; i++) {
+          let columns, fp;
+          let attempts = 0;
+          do {
+            columns = generateNumberColumns(size, rangePerCol, rng);
+            fp = cardFingerprint(size, (r, c) => {
+              if (freeCellSet.has(r + ',' + c)) return '__FREE__';
+              return columns[c][r];
+            });
+            attempts++;
+          } while (seen.has(fp) && attempts < 100);
+          seen.add(fp);
+
+          const getCell = (r, c) => columns[c][r];
+          const card = createCardElement(i + 1, size, headers, getCell, freeCells, freeLabel);
+
+          if (i > 0 && i % cardsPerPage === 0) {
+            card.classList.add('page-break');
+          }
+          container.appendChild(card);
+        }
+      }
+
+      // On mobile, close sidebar after generating
+      if (window.innerWidth <= 700) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('open');
+      }
+    }
+
+    // ── Keyboard shortcuts ──
+    document.addEventListener('keydown', function(e) {
+      // Don't trigger when typing in inputs
+      const tag = e.target.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      if (e.key === 'Enter' && !isInput) {
+        e.preventDefault();
+        generateCards();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        window.print();
+      }
+    });
+
+    // ── Textarea item count updates ──
+    document.getElementById('customItems').addEventListener('input', updateItemCount);
+    document.getElementById('freeSpacePosition').addEventListener('change', function() {
+      updateFreeSpaceVisibility();
+      updateItemCount();
+    });
+
+    // ── CSS helper for .hidden ──
+    const style = document.createElement('style');
+    style.textContent = '.hidden { display: none !important; }';
+    document.head.appendChild(style);
+
+    // ── Init ──
+    buildHeaderInputs();
+    updateFreeSpaceVisibility();
+    updateItemCount();
+  </script>
+</body>
+</html>
