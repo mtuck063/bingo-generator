@@ -8,7 +8,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans SC", "Microsoft YaHei", sans-serif;
       background: #f0f2f5;
       color: #1a1a2e;
       min-height: 100vh;
@@ -337,7 +337,6 @@
       text-align: center;
       font-weight: 600;
       vertical-align: middle;
-      overflow: hidden;
     }
 
     .bingo-table th {
@@ -600,11 +599,11 @@
         font-size: 20px;
       }
 
-      /* Override inline font-sizes for print — let cells breathe */
-      .cards-container.print-1 .cell-text { font-size: 28px !important; }
-      .cards-container.print-2 .cell-text { font-size: 22px !important; }
-      .cards-container.print-4 .cell-text { font-size: 18px !important; }
-      .cards-container.print-6 .cell-text { font-size: 13px !important; }
+      /* Let JS auto-shrink handle font sizes; just set a reasonable max */
+      .cell-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
       /* Force browsers to print background colors */
       .bingo-table th,
