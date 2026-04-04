@@ -790,7 +790,7 @@
     <!-- Action Buttons -->
     <div class="actions">
       <button class="btn-generate" onclick="generateCards()">Generate</button>
-      <button class="btn-print" onclick="window.print()">Print / PDF</button>
+      <button class="btn-print" onclick="safePrint()">Print / PDF</button>
     </div>
     <div class="shortcut-hint">Enter = Generate &middot; Ctrl+P = Print</div>
   </aside>
@@ -972,15 +972,44 @@
     }
 
     // ── Image helpers ──
+    var MAX_IMG_SIZE = 300; // px – enough for print cells, keeps data URLs small
+
+    function resizeImage(dataUrl) {
+      return new Promise(function(resolve) {
+        var img = new Image();
+        img.onload = function() {
+          var w = img.width, h = img.height;
+          if (w <= MAX_IMG_SIZE && h <= MAX_IMG_SIZE) {
+            resolve(dataUrl);
+            return;
+          }
+          var scale = Math.min(MAX_IMG_SIZE / w, MAX_IMG_SIZE / h);
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = dataUrl;
+      });
+    }
+
+    function addImageFromDataUrl(dataUrl) {
+      resizeImage(dataUrl).then(function(small) {
+        uploadedImages.push(small);
+        renderImageThumbs();
+        updateImageCount();
+      });
+    }
+
     function handleImageUpload(event) {
-      const files = Array.from(event.target.files);
+      var files = Array.from(event.target.files);
       files.forEach(function(file) {
         if (!file.type.startsWith('image/')) return;
-        const reader = new FileReader();
+        var reader = new FileReader();
         reader.onload = function(e) {
-          uploadedImages.push(e.target.result);
-          renderImageThumbs();
-          updateImageCount();
+          addImageFromDataUrl(e.target.result);
         };
         reader.readAsDataURL(file);
       });
@@ -1055,7 +1084,7 @@
         files.forEach(function(file) {
           var reader = new FileReader();
           reader.onload = function(ev) {
-            uploadedImages.push(ev.target.result);
+            addImageFromDataUrl(ev.target.result);
             renderImageThumbs();
             updateImageCount();
           };
@@ -1346,9 +1375,24 @@
 
       if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
         e.preventDefault();
-        window.print();
+        safePrint();
       }
     });
+
+    // ── Safe print — wait for all images to decode ──
+    function safePrint() {
+      var imgs = document.querySelectorAll('#cardsContainer img');
+      if (imgs.length === 0) {
+        window.print();
+        return;
+      }
+      Promise.all(Array.from(imgs).map(function(img) {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return img.decode().catch(function() {});
+      })).then(function() {
+        window.print();
+      });
+    }
 
     // ── Textarea item count updates ──
     document.getElementById('customItems').addEventListener('input', updateItemCount);
