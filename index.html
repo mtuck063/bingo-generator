@@ -901,6 +901,16 @@
             <input type="color" id="freeBgColor" value="#ffd166" onchange="applyStyleSettings()">
           </div>
         </div>
+        <div class="control-group">
+          <label>Text Orientation</label>
+          <select id="textOrientation" onchange="applyStyleSettings()">
+            <option value="horizontal" selected>Horizontal</option>
+            <option value="vertical-rl">Vertical (top to bottom)</option>
+            <option value="vertical-lr">Vertical (bottom to top)</option>
+            <option value="diagonal">Diagonal (45&deg;)</option>
+            <option value="diagonal-down">Diagonal (-45&deg;)</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -1098,9 +1108,24 @@
         .filter(s => s.length > 0);
     }
 
+    function findDuplicates(items) {
+      var seen = {};
+      var dupes = [];
+      items.forEach(function(item) {
+        var key = item.toLowerCase().trim();
+        if (seen[key]) {
+          if (seen[key] === 1) dupes.push(item);
+          seen[key]++;
+        } else {
+          seen[key] = 1;
+        }
+      });
+      return dupes;
+    }
+
     function updateItemCount() {
       const info = document.getElementById('itemCountInfo');
-      if (currentMode !== 'custom') { info.textContent = ''; return; }
+      if (currentMode !== 'custom') { info.textContent = ''; info.innerHTML = ''; return; }
       const items = getCustomItems();
       const size = parseInt(document.getElementById('gridSize').value);
       const needed = size * size;
@@ -1108,13 +1133,28 @@
       const freeCount = freePos === 'center' ? 1 : freePos === 'corners' ? 4 : 0;
       const actualNeeded = needed - freeCount;
 
+      var msg = '';
+      var cls = 'item-count-info';
+
       if (items.length < actualNeeded) {
-        info.textContent = items.length + ' items entered. Need at least ' + actualNeeded + '.';
-        info.className = 'item-count-info warning';
+        msg = items.length + ' items entered. Need at least ' + actualNeeded + '.';
+        cls = 'item-count-info warning';
       } else {
-        info.textContent = items.length + ' items entered (' + actualNeeded + ' needed per card).';
-        info.className = 'item-count-info';
+        msg = items.length + ' items entered (' + actualNeeded + ' needed per card).';
       }
+
+      var dupes = findDuplicates(items);
+      if (dupes.length > 0) {
+        msg += '\nDuplicates: ' + dupes.join(', ');
+        cls = 'item-count-info warning';
+      }
+
+      info.className = cls;
+      info.textContent = '';
+      msg.split('\n').forEach(function(line, i) {
+        if (i > 0) info.appendChild(document.createElement('br'));
+        info.appendChild(document.createTextNode(line));
+      });
     }
 
     function handleFileUpload(event) {
@@ -1265,20 +1305,30 @@
         headerBgColor: document.getElementById('headerBgColor').value,
         cellBgColor: document.getElementById('cellBgColor').value,
         freeBgColor: document.getElementById('freeBgColor').value,
+        textOrientation: document.getElementById('textOrientation').value,
       };
+    }
+
+    function getOrientationCSS(orientation) {
+      switch (orientation) {
+        case 'vertical-rl':
+          return { writingMode: 'vertical-rl', transform: 'none' };
+        case 'vertical-lr':
+          return { writingMode: 'vertical-lr', transform: 'rotate(180deg)' };
+        case 'diagonal':
+          return { writingMode: '', transform: 'rotate(-45deg)' };
+        case 'diagonal-down':
+          return { writingMode: '', transform: 'rotate(45deg)' };
+        default:
+          return { writingMode: '', transform: 'none' };
+      }
     }
 
     function applyStyleSettings() {
       var s = getStyleSettings();
       var container = document.getElementById('cardsContainer');
+      var orient = getOrientationCSS(s.textOrientation);
 
-      // Apply to existing cards via CSS custom properties on the container
-      container.style.setProperty('--user-cell-color', s.cellTextColor);
-      container.style.setProperty('--user-header-bg', s.headerBgColor);
-      container.style.setProperty('--user-cell-bg', s.cellBgColor);
-      container.style.setProperty('--user-free-bg', s.freeBgColor);
-
-      // Font sizes need to be applied to existing elements
       container.querySelectorAll('.bingo-table th').forEach(function(th) {
         th.style.background = s.headerBgColor;
         if (s.headerFontSize !== 'auto') th.style.fontSize = s.headerFontSize + 'px';
@@ -1290,6 +1340,8 @@
       container.querySelectorAll('.cell-text').forEach(function(span) {
         if (s.cellFontSize !== 'auto') span.style.fontSize = s.cellFontSize + 'px';
         span.style.color = s.cellTextColor;
+        span.style.writingMode = orient.writingMode;
+        span.style.transform = orient.transform;
       });
     }
 
@@ -1373,6 +1425,7 @@
       card.appendChild(header);
 
       const styles = getStyleSettings();
+      const orient = getOrientationCSS(styles.textOrientation);
 
       const table = document.createElement('table');
       table.className = 'bingo-table';
@@ -1427,6 +1480,8 @@
             }
           }
           span.style.color = styles.cellTextColor;
+          span.style.writingMode = orient.writingMode;
+          span.style.transform = orient.transform;
 
           td.appendChild(span);
           tr.appendChild(td);
