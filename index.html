@@ -367,6 +367,70 @@
       word-break: break-word;
     }
 
+    .cell-img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+    }
+
+    /* ── Image upload UI ── */
+    .image-thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .image-thumb {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 2px solid #ddd;
+    }
+
+    .image-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-thumb .remove-btn {
+      position: absolute;
+      top: -1px;
+      right: -1px;
+      width: 18px;
+      height: 18px;
+      background: #e63946;
+      color: #fff;
+      border: none;
+      border-radius: 0 4px 0 4px;
+      font-size: 11px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drop-zone {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      color: #999;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .drop-zone.dragover {
+      border-color: #4361ee;
+      background: #f0f4ff;
+      color: #4361ee;
+    }
+
     .empty-state {
       display: flex;
       align-items: center;
@@ -611,7 +675,8 @@
           <label>Content Mode</label>
           <div class="mode-toggle">
             <button class="active" id="modeNumbers" onclick="setMode('numbers')">Numbers</button>
-            <button id="modeCustom" onclick="setMode('custom')">Custom Text</button>
+            <button id="modeCustom" onclick="setMode('custom')">Text</button>
+            <button id="modeImages" onclick="setMode('images')">Images</button>
           </div>
         </div>
       </div>
@@ -647,6 +712,20 @@
           <span class="file-name" id="fileName">No file chosen</span>
           <input type="file" id="fileInput" class="hidden-input" accept=".txt,.csv" onchange="handleFileUpload(event)">
         </div>
+      </div>
+    </div>
+
+    <!-- Image Content -->
+    <div class="section hidden" id="imageSettings">
+      <div class="section-header" onclick="toggleSection(this)">Images</div>
+      <div class="section-body">
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('imageInput').click()">
+          Drop images here or click to upload
+        </div>
+        <input type="file" id="imageInput" class="hidden-input" accept="image/*" multiple onchange="handleImageUpload(event)">
+        <div class="item-count-info" id="imageCountInfo"></div>
+        <div class="image-thumbs" id="imageThumbs"></div>
+        <button class="btn-upload" id="clearImagesBtn" onclick="clearImages()" style="display:none">Clear All Images</button>
       </div>
     </div>
 
@@ -768,6 +847,7 @@
 
     // ── State ──
     let currentMode = 'numbers';
+    let uploadedImages = []; // array of data URL strings
 
     const defaultHeaders = {
       3: ['B', 'I', 'N'],
@@ -791,14 +871,18 @@
       currentMode = mode;
       document.getElementById('modeNumbers').classList.toggle('active', mode === 'numbers');
       document.getElementById('modeCustom').classList.toggle('active', mode === 'custom');
-      document.getElementById('numberSettings').classList.toggle('hidden', mode === 'custom');
-      document.getElementById('customSettings').classList.toggle('hidden', mode === 'numbers');
+      document.getElementById('modeImages').classList.toggle('active', mode === 'images');
+      document.getElementById('numberSettings').classList.toggle('hidden', mode !== 'numbers');
+      document.getElementById('customSettings').classList.toggle('hidden', mode !== 'custom');
+      document.getElementById('imageSettings').classList.toggle('hidden', mode !== 'images');
       updateItemCount();
+      updateImageCount();
     }
 
     function onGridSizeChange() {
       buildHeaderInputs();
       updateItemCount();
+      updateImageCount();
       updateFreeSpaceVisibility();
     }
 
@@ -887,6 +971,99 @@
       };
       reader.readAsText(file);
     }
+
+    // ── Image helpers ──
+    function handleImageUpload(event) {
+      const files = Array.from(event.target.files);
+      files.forEach(function(file) {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          uploadedImages.push(e.target.result);
+          renderImageThumbs();
+          updateImageCount();
+        };
+        reader.readAsDataURL(file);
+      });
+      event.target.value = '';
+    }
+
+    function removeImage(index) {
+      uploadedImages.splice(index, 1);
+      renderImageThumbs();
+      updateImageCount();
+    }
+
+    function clearImages() {
+      uploadedImages = [];
+      renderImageThumbs();
+      updateImageCount();
+    }
+
+    function renderImageThumbs() {
+      const container = document.getElementById('imageThumbs');
+      container.innerHTML = '';
+      uploadedImages.forEach(function(dataUrl, i) {
+        const thumb = document.createElement('div');
+        thumb.className = 'image-thumb';
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        thumb.appendChild(img);
+        const btn = document.createElement('button');
+        btn.className = 'remove-btn';
+        btn.textContent = '\u00D7';
+        btn.onclick = function() { removeImage(i); };
+        thumb.appendChild(btn);
+        container.appendChild(thumb);
+      });
+      document.getElementById('clearImagesBtn').style.display =
+        uploadedImages.length > 0 ? '' : 'none';
+    }
+
+    function updateImageCount() {
+      const info = document.getElementById('imageCountInfo');
+      if (currentMode !== 'images') { info.textContent = ''; return; }
+      const size = parseInt(document.getElementById('gridSize').value);
+      const freePos = document.getElementById('freeSpacePosition').value;
+      const freeCount = freePos === 'center' ? 1 : freePos === 'corners' ? 4 : 0;
+      const needed = size * size - freeCount;
+
+      if (uploadedImages.length < needed) {
+        info.textContent = uploadedImages.length + ' images uploaded. Need at least ' + needed + '.';
+        info.className = 'item-count-info warning';
+      } else {
+        info.textContent = uploadedImages.length + ' images uploaded (' + needed + ' needed per card).';
+        info.className = 'item-count-info';
+      }
+    }
+
+    // ── Drag and drop ──
+    (function() {
+      const dz = document.getElementById('dropZone');
+      dz.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dz.classList.add('dragover');
+      });
+      dz.addEventListener('dragleave', function() {
+        dz.classList.remove('dragover');
+      });
+      dz.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dz.classList.remove('dragover');
+        var files = Array.from(e.dataTransfer.files).filter(function(f) {
+          return f.type.startsWith('image/');
+        });
+        files.forEach(function(file) {
+          var reader = new FileReader();
+          reader.onload = function(ev) {
+            uploadedImages.push(ev.target.result);
+            renderImageThumbs();
+            updateImageCount();
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+    })();
 
     // ── Card generation ──
     function generateNumberColumns(size, rangePerCol, rng) {
@@ -1002,9 +1179,16 @@
             span.style.fontWeight = '700';
           } else {
             const val = getCell(row, col);
-            const text = String(val);
-            span.textContent = text;
-            span.style.fontSize = computeCellFontSize(text, cellSize) + 'px';
+            if (typeof val === 'string' && val.startsWith('data:image')) {
+              const img = document.createElement('img');
+              img.src = val;
+              img.className = 'cell-img';
+              span.appendChild(img);
+            } else {
+              const text = String(val);
+              span.textContent = text;
+              span.style.fontSize = computeCellFontSize(text, cellSize) + 'px';
+            }
           }
 
           td.appendChild(span);
@@ -1032,7 +1216,49 @@
       container.innerHTML = '';
       container.className = 'cards-container print-' + cardsPerPage;
 
-      if (currentMode === 'custom') {
+      if (currentMode === 'images') {
+        const cellsNeeded = size * size - freeCells.length;
+        if (uploadedImages.length < cellsNeeded) {
+          container.innerHTML = '<div class="empty-state">Not enough images. Upload at least <strong>' +
+            cellsNeeded + '</strong> images for a ' + size + '&times;' + size + ' card.</div>';
+          return;
+        }
+
+        const seen = new Set();
+        for (let i = 0; i < count; i++) {
+          let grid, fp;
+          let attempts = 0;
+          do {
+            const shuffled = shuffle(uploadedImages, rng);
+            grid = [];
+            let idx = 0;
+            for (let r = 0; r < size; r++) {
+              grid[r] = [];
+              for (let c = 0; c < size; c++) {
+                if (freeCellSet.has(r + ',' + c)) {
+                  grid[r][c] = '__FREE__';
+                } else {
+                  grid[r][c] = shuffled[idx++];
+                }
+              }
+            }
+            // fingerprint by image index in original array
+            fp = cardFingerprint(size, (r, c) => {
+              if (grid[r][c] === '__FREE__') return '__FREE__';
+              return uploadedImages.indexOf(grid[r][c]);
+            });
+            attempts++;
+          } while (seen.has(fp) && attempts < 100);
+          seen.add(fp);
+
+          const getCell = (r, c) => grid[r][c];
+          const card = createCardElement(i + 1, size, headers, getCell, freeCells, freeLabel);
+          if (i > 0 && i % cardsPerPage === 0) {
+            card.classList.add('page-break');
+          }
+          container.appendChild(card);
+        }
+      } else if (currentMode === 'custom') {
         const items = getCustomItems();
         const cellsNeeded = size * size - freeCells.length;
         if (items.length < cellsNeeded) {
