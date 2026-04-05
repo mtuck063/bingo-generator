@@ -1084,7 +1084,7 @@
         input.maxLength = 6;
         input.className = 'header-char-input';
         input.value = currentValues[i] !== undefined && currentValues[i] !== '' ? currentValues[i] : (defaults[i] || '');
-        if (typeof pasteAsPlainText === 'function') input.addEventListener('paste', pasteAsPlainText);
+        if (typeof pasteAsPlainText === 'function') input.addEventListener('paste', pasteAsPlainText, true);
         container.appendChild(input);
       }
     }
@@ -1715,22 +1715,39 @@
     }
 
     // ── Paste handler: insert raw clipboard text, bypass IME conversion ──
+    // Uses capturing phase and stops all propagation so IME never sees the event.
+    // Falls back to navigator.clipboard API if clipboardData is empty.
     function pasteAsPlainText(e) {
-      var text = (e.clipboardData || window.clipboardData).getData('text/plain');
-      if (!text) return;
       e.preventDefault();
+      e.stopImmediatePropagation();
+
       var el = e.target;
-      if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-        var start = el.selectionStart;
-        var end = el.selectionEnd;
-        el.value = el.value.substring(0, start) + text + el.value.substring(end);
-        el.selectionStart = el.selectionEnd = start + text.length;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
+      if (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT') return;
+
+      var text = '';
+      if (e.clipboardData) text = e.clipboardData.getData('text/plain') || e.clipboardData.getData('text');
+
+      if (text) {
+        insertTextAt(el, text);
+      } else if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(function(t) {
+          if (t) insertTextAt(el, t);
+        });
       }
     }
-    document.getElementById('customItems').addEventListener('paste', pasteAsPlainText);
+
+    function insertTextAt(el, text) {
+      var start = el.selectionStart;
+      var end = el.selectionEnd;
+      el.value = el.value.substring(0, start) + text + el.value.substring(end);
+      el.selectionStart = el.selectionEnd = start + text.length;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Attach on capturing phase to intercept before IME
+    document.getElementById('customItems').addEventListener('paste', pasteAsPlainText, true);
     document.querySelectorAll('.header-char-input').forEach(function(input) {
-      input.addEventListener('paste', pasteAsPlainText);
+      input.addEventListener('paste', pasteAsPlainText, true);
     });
 
     // ── Textarea item count updates ──
