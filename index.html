@@ -1084,6 +1084,7 @@
         input.maxLength = 6;
         input.className = 'header-char-input';
         input.value = currentValues[i] !== undefined && currentValues[i] !== '' ? currentValues[i] : (defaults[i] || '');
+        if (typeof pasteAsPlainText === 'function') input.addEventListener('paste', pasteAsPlainText);
         container.appendChild(input);
       }
     }
@@ -1712,6 +1713,25 @@
         window.print();
       });
     }
+
+    // ── Paste handler: insert raw clipboard text, bypass IME conversion ──
+    function pasteAsPlainText(e) {
+      var text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      if (!text) return;
+      e.preventDefault();
+      var el = e.target;
+      if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+        var start = el.selectionStart;
+        var end = el.selectionEnd;
+        el.value = el.value.substring(0, start) + text + el.value.substring(end);
+        el.selectionStart = el.selectionEnd = start + text.length;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+    document.getElementById('customItems').addEventListener('paste', pasteAsPlainText);
+    document.querySelectorAll('.header-char-input').forEach(function(input) {
+      input.addEventListener('paste', pasteAsPlainText);
+    });
 
     // ── Textarea item count updates ──
     document.getElementById('customItems').addEventListener('input', updateItemCount);
